@@ -156,10 +156,10 @@ model = mlp_net().to(my_device)
 model.load_state_dict(torch.load('up_down_model_weight_100.pth', map_location=my_device))
 
 # 学習させ、その結果を表示する
-# train(model, data_loader)
+train(model, data_loader)
 torch.save(model.state_dict(), 'up_down_model_weight_100.pth')
-model_scripted = torch.jit.script(model)
-model_scripted.save('up_down_model_scripted_100.pth')
+# model_scripted = torch.jit.script(model)
+# model_scripted.save('up_down_model_scripted_100.pth')
 
 acc, loss = test(model, test_loader)
 print(f'正答率: {acc}, 損失: {loss}')
