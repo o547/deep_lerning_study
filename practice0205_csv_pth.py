@@ -15,30 +15,36 @@ from torch.utils.data import DataLoader, Dataset
 
 # カスタムデータセットの作成
 class CustomDataset(Dataset):
-    def __init__(self, data, labels):
+    def __init__(self, datas, labels):
         # データとラベルを受け取るコンストラクタ
-        self.data = data
+        self.datas = datas
         self.labels = labels
 
     def __len__(self):
         # データセットのサイズを返す
-        return len(self.data)
+        return len(self.datas)
 
     def __getitem__(self, idx):
         # 指定したインデックスのデータとラベルを返す
-        sample = {'data': self.data[idx], 'label': self.labels[idx]}
+        sample = {'datas': self.datas[idx], 'label': self.labels[idx]}
         return sample
 
 # ダミーデータを作成
-data = np.array([[i] for i in range(100000)], dtype=np.float32)
-labels = np.array([i * 2 for i in range(100000)], dtype=np.float32)
 
-test_datas = np.array([[(i+100000)*2] for i in range(10000)], dtype=np.float32)
-test_labels = np.array([((i+100000) * 4) for i in range(10000)], dtype=np.float32)
+df = pd.read_csv('./double.csv',  header=0)
+all_datas=df.loc[:, 'original':'original'].to_numpy().astype(np.float32)
+all_labels=df.loc[:, 'double'].to_numpy().astype(np.float32)
+
+
+datas = all_datas[::2]
+labels = all_labels[::2]
+
+test_datas = all_datas[::2]
+test_labels = all_labels[::2]
 
 
 # データセットのインスタンスを作成
-custom_dataset = CustomDataset(data, labels)
+custom_dataset = CustomDataset(datas, labels)
 test_dataset = CustomDataset(test_datas, test_labels)
 
 
@@ -60,9 +66,9 @@ class mlp_net(nn.Module):
         x = self.fc1(x)
         x = F.relu(x)
 
+
         x = self.fc15(x)
         x = F.relu(x)
-
 
         x = self.fc2(x)
         return x
@@ -71,13 +77,12 @@ class mlp_net(nn.Module):
 def train(model, train_loader):
     # 今は学習時であることを明示するコード
     model.train()
-
-    # ミニバッチごとにループさせる,train_loaderの中身を出し切ったら1エポックとなる
-    for i in range(10):
+    for i in range(30):
+        # ミニバッチごとにループさせる,train_loaderの中身を出し切ったら1エポックとなる
         for batch in train_loader:
-            batch_imgs=batch['data']
+            batch_imgs=batch['datas']
             batch_labels=batch['label']
-            batch_imgs = batch_imgs.reshape(10, 1) 
+            batch_imgs = batch_imgs.reshape(10, 1)
             batch_labels = batch_labels.reshape(10, 1)
 
             outputs = model(batch_imgs)  # 順伝播
@@ -87,6 +92,8 @@ def train(model, train_loader):
             loss = model.criterion(outputs, batch_labels)  # 損失を計算
             loss.backward()  # 逆伝播で勾配を計算
             model.optimizer.step()  # 最適化
+        if(i%10==0):
+            print(str(i)+"周目終了")
        
 
 
@@ -102,7 +109,7 @@ def test(model, train_loader):
 
     # ミニバッチごとにループさせる,train_loaderの中身を出し切ったら1エポックとなる
     for batch in train_loader:
-        batch_imgs=batch['data']
+        batch_imgs=batch['datas']
         batch_labels=batch['label']
         batch_imgs = batch_imgs.reshape(10, 1)
         batch_labels = batch_labels.reshape(10, 1)
@@ -112,7 +119,7 @@ def test(model, train_loader):
         batch_size = len(batch_labels)  # バッチサイズの確認
         for i in range(batch_size):  # データ一つずつループ,ミニバッチの中身出しきるまで
             if(total_data_len%100==0):
-                print("data:"+str(batch_imgs[i].item())+"  out:"+str(outputs[i].item())+"  label:"+str(batch_labels[i].item())+"  difference:"+str((outputs[i].item() - batch_labels[i].item())**2))
+                #print("datas:"+str(batch_imgs[i].item())+"  out:"+str(outputs[i].item())+"  label:"+str(batch_labels[i].item())+"  difference:"+str((outputs[i].item() - batch_labels[i].item())**2))
                 None
             total_data_len += 1  # 全データ数を集計
             if (outputs[i].item() - batch_labels[i].item())**2 < 100:
@@ -129,8 +136,7 @@ def test(model, train_loader):
 model = mlp_net()
 
 # 学習させ、その結果を表示する
-train(model, data_loader)
-torch.save(model.state_dict(), 'double_model_weight.pth')
+model.load_state_dict(torch.load('double_model_weight.pth'))
 
 acc, loss = test(model, test_loader)
 print(f'正答率: {acc}, 損失: {loss}')
