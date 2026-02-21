@@ -131,7 +131,8 @@ def test(model, train_loader):
 
             outputs_softmax=softmax=F.softmax(outputs[i], dim=0)
             if outputs_softmax[0].item()>0.6 or outputs_softmax[1].item()>0.6:
-
+                print(pred_labels[i])
+                print(batch_labels[i])
 
                 total_data_len += 1  # 全データ数を集計
                 if pred_labels[i] == batch_labels[i]:
@@ -156,7 +157,7 @@ model = mlp_net().to(my_device)
 model.load_state_dict(torch.load('up_down_model_weight_100.pth', map_location=my_device))
 
 # 学習させ、その結果を表示する
-train(model, data_loader)
+test(model, test_loader)
 torch.save(model.state_dict(), 'up_down_model_weight_100.pth')
 # model_scripted = torch.jit.script(model)
 # model_scripted.save('up_down_model_scripted_100.pth')

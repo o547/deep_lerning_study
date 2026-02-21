@@ -8,20 +8,24 @@ def learn(file_path, file_name, epoch_size, input_size, mid1_size, mid2_size, ou
     import pandas as pd
     import numpy as np
 
-    my_device="cpu"
-    
-    #GPUをOS側で設定済みであればコメントアウトコメントアウトを外す
-    #my_device = torch.device("cpu" if torch.cuda.is_available() else "cpu")
+    import matplotlib.pyplot as plt
 
+
+    my_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    # カスタムデータセットの作成
     class CustomDataset(Dataset):
         def __init__(self, datas, labels):
+            # データとラベルを受け取るコンストラクタ
             self.datas = datas
             self.labels = labels
 
         def __len__(self):
+            # データセットのサイズを返す
             return len(self.datas)
 
         def __getitem__(self, idx):
+            # 指定したインデックスのデータとラベルを返す
             return self.datas[idx], self.labels[idx]
     try:
         df = pd.read_csv(file_path, header=0)
@@ -50,10 +54,8 @@ def learn(file_path, file_name, epoch_size, input_size, mid1_size, mid2_size, ou
         batch_size=1
     elif (len(all_datas)<100):
         batch_size=10
-    elif (len(all_datas)<1000):
-        batch_size=100
     else:
-        batch_size=1000
+        batch_size=100
 
     # DataLoaderの作成
     data_loader = DataLoader(dataset=custom_dataset, batch_size=batch_size, shuffle=True)
@@ -75,15 +77,13 @@ def learn(file_path, file_name, epoch_size, input_size, mid1_size, mid2_size, ou
 
             x = self.fc2(x)
             x = F.relu(x)
-
-            # x = self.dropout(x)
-
+            
             x = self.fc3(x)
             return x
 
     def train(model, train_loader):
         model.train()
-        for i in range(epoch_size):
+        for i in range(1):
             # ミニバッチごとにループさせる,train_loaderの中身を出し切ったら1エポックとなる
             for batch_items, batch_labels in train_loader:
                 batch_labels = batch_labels.view(-1, output_size)
@@ -109,15 +109,13 @@ def learn(file_path, file_name, epoch_size, input_size, mid1_size, mid2_size, ou
             loss = model.criterion(outputs, batch_labels)  # 損失を計算
 
             batch_size = len(batch_labels)  # バッチサイズの確認
-            for i in range(
-                batch_size
-            ):
+            for i in range(batch_size):
                 total_data_len += output_size  # 全データ数を集計
                 for j in range(output_size):
-                    if (outputs[i][j].item() - batch_labels[i][j].item()) ** 2 < 9:
+                    if (outputs[i][j].item() - batch_labels[i][j].item()) ** 2 < 0.1:
                         total_correct += 1  # 正解のデータ数を集計
             total_loss += loss.item()  # 全損失の合計
-
+        print(str(total_correct)+"/"+str(total_data_len))
         accuracy = total_correct / total_data_len * 100  # 予測精度の算出
         loss = total_loss / total_data_len  # 損失の平均の算出
         return accuracy, loss
@@ -125,17 +123,23 @@ def learn(file_path, file_name, epoch_size, input_size, mid1_size, mid2_size, ou
     model = mlp_net()
     model = model.to(my_device)
     # 重みをロード
-    # model.load_state_dict(torch.load(file_path.replace(".csv","_weight.pth"), map_location=my_device))
+    # model.load_state_dict(torch.load('./double.pth', map_location=my_device))
     # モデルをロード
-    # model = torch.jit.load(file_path.replace(".csv",".pth"), map_location=my_device))
+    # model = torch.jit.load(file_path.replace(".csv",".pth")).to(my_device)
 
-
-
-    train(model, data_loader)
-    acc, loss = test(model, test_loader)
-    print(f"正答率: {acc}, 損失: {loss}")
+    accs=[]
+    losses=[]
+    for i in range(epoch_size):
+        train(model, data_loader)
+        acc, loss = test(model, test_loader)
+        accs.append(acc)
+        losses.append(loss)
+        print(f"正答率: {acc}, 損失: {loss}")
+    print(accs)
+    plt.plot(accs)
 
     model_scripted = torch.jit.script(model)
     model_scripted.save(file_path.replace(".csv",".pth"))
+    plt.show()
 
-learn("./patient.csv", "patient", 10, 0, 128, 32, 1)
+learn(file_path="./sample.csv", file_name="sample", epoch_size=100, input_size=3, mid1_size=32, mid2_size=8, output_size=2)
