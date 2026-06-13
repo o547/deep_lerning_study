@@ -121,10 +121,6 @@ def learn(file_path, file_name, epoch_size, input_size, mid1_size, mid2_size):
         total_loss = 0
         total_data_len = 0
         total_detection = 0
-        precision_denominator = 0
-        precision_molecule = 0
-        recall_denominator = 0
-        recall_molecule = 0
 
         for batch_items, batch_labels in train_loader:
             batch_labels = batch_labels.view(-1).long()
@@ -141,35 +137,18 @@ def learn(file_path, file_name, epoch_size, input_size, mid1_size, mid2_size):
             for i in range(
                 batch_size
             ):  # データ一つずつループ,ミニバッチの中身出しきるまで
-                total_data_len += 1  # 全データ数を集計
-
-                # 正解率
                 total_detection += 1
+                total_data_len += 1  # 全データ数を集計
                 if pred_labels[i] == batch_labels[i]:
                     total_correct += 1  # 正解のデータ数を集計
-                # 適合率
-                if pred_labels[i] == 1:
-                    precision_denominator += 1
-                    if batch_labels[i] == 1:
-                        precision_molecule += 1
-                # 再現率
-                if batch_labels[i] == 1:
-                    recall_denominator += 1
-                    if pred_labels[i] == 1:
-                        recall_molecule += 1
-
             total_loss += loss.item()  # 全損失の合計
         try:
-            # 予測精度の算出
-            accuracy = total_correct / total_data_len * 100
-            precision = precision_molecule / precision_denominator * 100
-            recall = recall_molecule / recall_denominator * 100
-
+            accuracy = total_correct / total_data_len * 100  # 予測精度の算出
             loss = total_loss / total_data_len  # 損失の平均の算出
         except ZeroDivisionError:
             accuracy = -0.1
             loss = -0.1
-        return total_detection, accuracy, precision, recall, loss
+        return total_detection, accuracy, loss
 
     model = dengue_net()
     model = model.to(my_device)
@@ -182,13 +161,11 @@ def learn(file_path, file_name, epoch_size, input_size, mid1_size, mid2_size):
     losses = []
     for i in range(epoch_size):
         train(model, data_loader)
-        if i % 1 == 0:
-            detection, accuracy, precision, recall, loss = test(model, test_loader)
-            accs.append(accuracy)
+        if i % 2 == 0:
+            detection, acc, loss = test(model, test_loader)
+            accs.append(acc)
             losses.append(loss)
-            print(
-                f"{i}周目 正答率: {accuracy}, 適合率：{precision}, 再現率：{recall}, 損失: {loss}, 検知数：{detection}"
-            )
+            print(f"{i}周目 正答率: {acc}, 損失: {loss}, 検知数：{detection}")
             if i % 10 == 0:
                 torch.save(model.state_dict(), file_path.replace(".csv", "weight.pth"))
                 model_scripted = torch.jit.script(model)
@@ -201,11 +178,4 @@ def learn(file_path, file_name, epoch_size, input_size, mid1_size, mid2_size):
     plt.show()
 
 
-learn(
-    "./Dengue_diseases_dataset_pretreatment.csv",
-    "Dengue_diseases_dataset_pretreatment",
-    10,
-    10,
-    256,
-    128,
-)
+learn("./Dengue_diseases_dataset_pretreatment.csv","Dengue_diseases_dataset_pretreatment",20,10,256,128)
